@@ -88,18 +88,6 @@ func (a *API) createRouter(cfg *config.Config) *fiber.App {
 		statusCode, body := healthHandler.GetResponseStatusCodeAndBody()
 		return c.Status(statusCode).Send(body)
 	})
-	// Add /update route
-	app.Get("/update", func(c *fiber.Ctx) error {
-		// Run the update.sh bash script
-		cmd := exec.Command("/bin/bash", "update.sh")
-		err := cmd.Run()
-		if err != nil {
-			log.Printf("[api.update] Error running update.sh: %s", err.Error())
-			return c.Status(fiber.StatusInternalServerError).SendString("Failed to initiate update")
-		}
-		// Return response to the client
-		return c.SendString("Update initiated")
-	})
 	// Everything else falls back on static content
 	app.Use(redirect.New(redirect.Config{
 		Rules: map[string]string{
@@ -131,5 +119,28 @@ func (a *API) createRouter(cfg *config.Config) *fiber.App {
 	}
 	protectedAPIRouter.Get("/v1/endpoints/statuses", EndpointStatuses(cfg))
 	protectedAPIRouter.Get("/v1/endpoints/:key/statuses", EndpointStatus)
+	// Add /update route
+	protectedAPIRouter.Get("/update", func(c *fiber.Ctx) error {
+		// Run the update.sh bash script
+		cmd := exec.Command("/bin/bash", "update.sh")
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("[api.update] Error running update.sh: %s", err.Error())
+			return c.Status(fiber.StatusInternalServerError).SendString("Failed to initiate update")
+		}
+		c.Type("html")
+		return c.SendString(`
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<script type="text/javascript">
+				alert("Update initiated");
+				window.location.href = "/";
+			</script>
+		</head>
+		<body></body>
+		</html>
+		`)
+	})
 	return app
 }
